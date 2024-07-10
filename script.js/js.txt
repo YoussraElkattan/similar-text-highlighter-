@@ -1,0 +1,67 @@
+document.getElementById('fileInput').addEventListener('change', handleFileSelect, false);
+
+function handleFileSelect(event) {
+    const files = event.target.files;
+    const reader = new FileReader();
+    
+    reader.onload = function(event) {
+        const text = event.target.result;
+        processText(text);
+    };
+    
+    for (const file of files) {
+        reader.readAsText(file);
+    }
+}
+
+function processText(text) {
+    const sentences = text.split('.').map(s => s.trim()).filter(s => s.length > 0);
+    const similarityMatrix = computeSimilarityMatrix(sentences);
+    displaySentences(sentences, similarityMatrix);
+}
+
+function computeSimilarityMatrix(sentences) {
+    const matrix = Array(sentences.length).fill(null).map(() => Array(sentences.length).fill(0));
+    
+    for (let i = 0; i < sentences.length; i++) {
+        for (let j = i + 1; j < sentences.length; j++) {
+            const similarity = cosineSimilarity(sentences[i], sentences[j]);
+            matrix[i][j] = similarity;
+            matrix[j][i] = similarity;
+        }
+    }
+    
+    return matrix;
+}
+
+function cosineSimilarity(sent1, sent2) {
+    const words1 = sent1.split(' ');
+    const words2 = sent2.split(' ');
+
+    const wordSet = new Set([...words1, ...words2]);
+    const vec1 = Array.from(wordSet).map(word => words1.includes(word) ? 1 : 0);
+    const vec2 = Array.from(wordSet).map(word => words2.includes(word) ? 1 : 0);
+
+    const dotProduct = vec1.reduce((sum, val, idx) => sum + val * vec2[idx], 0);
+    const magnitude1 = Math.sqrt(vec1.reduce((sum, val) => sum + val * val, 0));
+    const magnitude2 = Math.sqrt(vec2.reduce((sum, val) => sum + val * val, 0));
+
+    return dotProduct / (magnitude1 * magnitude2);
+}
+
+function displaySentences(sentences, similarityMatrix) {
+    const output = document.getElementById('output');
+    output.innerHTML = '';
+
+    const maxSimilarity = Math.max(...similarityMatrix.flat());
+    
+    sentences.forEach((sentence, idx) => {
+        const colorIntensity = similarityMatrix[idx].reduce((a, b) => a + b, 0) / maxSimilarity;
+        const color = `rgba(0, 255, 0, ${colorIntensity})`;
+        const sentenceElement = document.createElement('span');
+        sentenceElement.classList.add('sentence');
+        sentenceElement.style.backgroundColor = color;
+        sentenceElement.textContent = sentence + '.';
+        output.appendChild(sentenceElement);
+    });
+}
